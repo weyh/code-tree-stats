@@ -9,6 +9,7 @@ usage: cts.py [options]
 
 optional arguments:
   -h, --help            show this help message and exit
+  -V, --version         show program's version number and exit
   -c N, --cutoff N      number of elements to show
   -B, --show_binary     show binary files in the list
   -N, --hide_negligible hides files with negligible amount of lines (<00.01%)
