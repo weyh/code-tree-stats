@@ -18,6 +18,18 @@ optional arguments:
 
 **Minimum python version: 3.6**
 
+<details>
+  <summary>About the code</summary>
+  <p>
+    <b>Why is everything in a single file?</b><br>
+    One of the goals I set out is to only have a single file. In the future I may move some of the classes to separate files.
+  </p>
+  <p>
+    <b>Reinventing the wheel</b><br>
+    I don't use <u>external packages</u> for a similar reason. I want it to run on any device, without any additional files.
+  </p>
+</details>
+
 ### License
 
 This project is licensed under the MIT License - see the [MIT License](LICENSE) file for details.

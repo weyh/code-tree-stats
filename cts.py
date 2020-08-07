@@ -4,11 +4,11 @@ import argparse
 import threading
 import time
 from itertools import takewhile, repeat
-from typing import List
+from typing import List, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-VERSION = "0.9.9"
+VERSION = "1.0.0"
 run_thread = True
 
 
@@ -46,11 +46,14 @@ class Align(Enum):
 
 
 class Table:
-    def __init__(self, header: list, datas: List[list], aling: List[Align] = [Align.left, Align.left, Align.left]):
+    def __init__(self, header: list, datas: List[list], header_aling: List[Align] = None, data_aling: List[Align] = None):
+        header_aling.extend([Align.left] * (len(header) - len(header_aling) if header_aling != None else 0))
+        data_aling.extend([Align.left] * (len(header) - len(data_aling) if data_aling != None else 0))
+
         self.__header = header
         self.__datas = datas
         self.__longest_in_column = [0] * len(header)
-        self.__aling = aling
+        self.__aling = [header_aling, data_aling]
 
         for i, col in enumerate(header):
             if self.__len_without_color(col) > self.__longest_in_column[i]:
@@ -67,11 +70,10 @@ class Table:
 
         return len(text)
 
-    def __align_element(self, col_item: str, col_num: int) -> str:
-        if self.__aling[col_num] == Align.right:
+    def __align_element(self, col_item: str, col_num: int, aling: Align) -> str:
+        if aling == Align.right:
             _item = ' ' * (self.__longest_in_column[col_num] - self.__len_without_color(col_item)) + col_item
-        elif self.__aling[col_num] == Align.center:
-            # flooring with int, this why no new import is required and it's alway >0
+        elif aling == Align.center:
             right_spacing = int((self.__longest_in_column[col_num] - self.__len_without_color(col_item)) / 2)
             left_spacing = round((self.__longest_in_column[col_num] - self.__len_without_color(col_item)) / 2)
 
@@ -86,8 +88,7 @@ class Table:
 
         if show_header:
             for i, col in enumerate(self.__header):
-                #_table += '| ' + col + ' ' * (self.__longest_in_column[i] - self.__len_without_color(col)) + ' '
-                _table += '| ' + self.__align_element(col, i) + ' '
+                _table += '| ' + self.__align_element(col, i, self.__aling[0][i]) + ' '
             _table += "|\n"
 
             for col in self.__longest_in_column:
@@ -96,8 +97,7 @@ class Table:
 
         for row in self.__datas:
             for i, col in enumerate(row):
-                #_table += '| ' + col + ' ' * (self.__longest_in_column[i] - self.__len_without_color(col)) + ' '
-                _table += '| ' + self.__align_element(col, i) + ' '
+                _table += '| ' + self.__align_element(col, i, self.__aling[1][i]) + ' '
             _table += "|\n"
 
         return _table
@@ -164,39 +164,54 @@ def loading_animation():
     threading.Thread(target=loading_text_animation).start()
 
 
-def prep_table_data(file_datas: List[FileData], lines_sum: int, cutoff: int, hide_negligible: bool) -> List[list]:
+def percentage_color(_percentage: float, percentage_max: float) -> str:
+    _color = ""
+    if _percentage / percentage_max > 0.9:
+        _color = Color.bright_red
+    elif _percentage / percentage_max > 0.75:
+        _color = Color.bright_yellow
+    elif _percentage / percentage_max > 0.5:
+        _color = Color.bright_blue
+    elif _percentage / percentage_max > 0.25:
+        _color = Color.bright_magenta
+
+    return _color
+
+
+def percentage_format(percent: float) -> str:
+    if percent == 100:
+        return f"  {percent:03.0f}%"
+
+    return f"{percent:05.2f}%"
+
+
+def prep_table_data(file_datas: List[FileData], lines_sum: int, files_sum: int, cutoff: int, hide_negligible: bool) -> List[list]:
     datas = list()
 
-    percentage_max = 0
+    line_percentage_max = 0
+    file_percentage_max = 0
     for i, file_data in enumerate(file_datas):
         if i >= cutoff and cutoff != -1:
             break
 
-        _percentage = round(file_data.line_count / lines_sum, 4) * 100
-        if _percentage == 100:
-            percentage = f"   {(round(file_data.line_count / lines_sum, 4) * 100):03.0f}%"
-        else:
-            percentage = f" {(round(file_data.line_count / lines_sum, 4) * 100):05.2f}%"
+        line_percent = file_data.line_count / lines_sum * 100
+        file_percent = file_data.file_count / files_sum * 100
 
-        if _percentage < 0.01 and hide_negligible:
+        if line_percent < 0.01 and hide_negligible:
             break
 
         if i == 0:
-            percentage_max = _percentage
+            line_percentage_max = line_percent
+            file_percentage_max = file_percent
 
-        _color = ""
-        if _percentage / percentage_max > 0.9:
-            _color = Color.bright_red
-        elif _percentage / percentage_max > 0.75:
-            _color = Color.bright_yellow
-        elif _percentage / percentage_max > 0.5:
-            _color = Color.bright_blue
-        elif _percentage / percentage_max > 0.25:
-            _color = Color.bright_magenta
+        line_color = percentage_color(line_percent, line_percentage_max)
+        file_color = percentage_color(file_percent, file_percentage_max)
 
-        datas.append([f"{_color}{file_data.ext}{Color.reset}",
-                      f"{_color}{loading_bar(file_data.line_count, lines_sum) + percentage}{Color.reset}",
-                      f"{_color}{file_data.file_count}{Color.reset}"])
+        datas.append([f"{file_data.ext}",
+                      f"{line_color}{file_data.line_count}{Color.reset}",
+                      f"{line_color}{loading_bar(file_data.line_count, lines_sum) + ' ' + percentage_format(line_percent)}{Color.reset}",
+                      f"{file_color}{file_data.file_count}{Color.reset}",
+                      f"{file_color}{percentage_format(file_percent)}{Color.reset}"])
 
     return datas
 
@@ -238,9 +253,10 @@ def main():
     finally:
         run_thread = False
 
-    my_table = Table(["File types", "Lines / all lines", "File count"],
-                     prep_table_data(file_datas, lines_sum, args.cutoff, args.hide_negligible),
-                     [Align.left, Align.center, Align.right])
+    my_table = Table(["File types", "Line count", "Lines / Lines sum", "File count", "Count / Files sum"],
+                     prep_table_data(file_datas, lines_sum, files_sum, args.cutoff, args.hide_negligible),
+                     [Align.left, Align.right, Align.center, Align.right, Align.center],
+                     [Align.left, Align.right, Align.center, Align.right, Align.center])
     print(my_table.show())
 
     print(f"\nRoot: {Color.bright_green}{path}{Color.reset}")
