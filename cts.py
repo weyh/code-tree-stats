@@ -8,7 +8,7 @@ from typing import List, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-VERSION = "1.0.0"
+VERSION = "1.0.5"
 run_thread = True
 
 
@@ -133,6 +133,23 @@ def count_lines(file_path: str) -> int:
     return sum(buf.count(b'\n') for buf in bufgen)
 
 
+def size_converter(_bytes: int) -> str:
+    """
+    Converts bytes to KB, MB & GB
+        Returns: formated str
+    """
+    KB = _bytes / float(1 << 10)
+    MB = _bytes / float(1 << 20)
+    GB = _bytes / float(1 << 30)
+
+    if GB > 1:
+        return f"{round(GB, 2):,} GB"
+    elif MB > 1:
+        return f"{round(MB, 2):,} MB"
+
+    return f"{round(KB, 2):,} KB"
+
+
 def loading_text_animation():
     loading_counter = 0
 
@@ -225,6 +242,7 @@ def main():
     file_datas = list()
     files_sum = 0
     lines_sum = 0
+    size_sum = 0  # bytes
 
     args = process_args()
     if not args.hide_animation:
@@ -235,6 +253,7 @@ def main():
             for file in files:
                 if ((not is_binary(f"{r}/{file}") or args.show_binary) and len(os.path.splitext(file)[1]) > 1 and not is_folder_hidden(r)):
                     files_sum += 1
+                    size_sum += os.path.getsize(f"{r}/{file}")
                     lc = count_lines(f"{r}/{file}")
                     lines_sum += lc
 
@@ -262,6 +281,7 @@ def main():
     print(f"\nRoot: {Color.bright_green}{path}{Color.reset}")
     print(f"Sum of files: {Color.bright_green}{files_sum}{Color.reset}")
     print(f"Sum of lines: {Color.bright_green}{lines_sum}{Color.reset}")
+    print(f"Size of files: {Color.bright_green}{size_converter(size_sum)} ({size_sum:,} bytes){Color.reset}")
 
 
 if __name__ == "__main__":
