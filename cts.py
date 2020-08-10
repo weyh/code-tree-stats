@@ -7,8 +7,9 @@ from itertools import takewhile, repeat
 from typing import List, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from math import floor, ceil
 
-VERSION = "1.0.5"
+VERSION = "1.1.0"
 run_thread = True
 
 
@@ -17,6 +18,7 @@ class FileData:
     ext: str
     line_count: int
     file_count: int
+    size: int
 
 
 class Color:
@@ -74,8 +76,8 @@ class Table:
         if aling == Align.right:
             _item = ' ' * (self.__longest_in_column[col_num] - self.__len_without_color(col_item)) + col_item
         elif aling == Align.center:
-            right_spacing = int((self.__longest_in_column[col_num] - self.__len_without_color(col_item)) / 2)
-            left_spacing = round((self.__longest_in_column[col_num] - self.__len_without_color(col_item)) / 2)
+            right_spacing = floor((self.__longest_in_column[col_num] - self.__len_without_color(col_item)) / 2)
+            left_spacing = ceil((self.__longest_in_column[col_num] - self.__len_without_color(col_item)) / 2)
 
             _item = ' ' * right_spacing + col_item + ' ' * left_spacing
         else:  # def is left aling
@@ -197,7 +199,7 @@ def percentage_color(_percentage: float, percentage_max: float) -> str:
 
 def percentage_format(percent: float) -> str:
     if percent == 100:
-        return f"  {percent:03.0f}%"
+        return f"{percent:03.0f}%"
 
     return f"{percent:05.2f}%"
 
@@ -227,8 +229,8 @@ def prep_table_data(file_datas: List[FileData], lines_sum: int, files_sum: int, 
         datas.append([f"{file_data.ext}",
                       f"{line_color}{file_data.line_count}{Color.reset}",
                       f"{line_color}{loading_bar(file_data.line_count, lines_sum) + ' ' + percentage_format(line_percent)}{Color.reset}",
-                      f"{file_color}{file_data.file_count}{Color.reset}",
-                      f"{file_color}{percentage_format(file_percent)}{Color.reset}"])
+                      f"{file_color}({percentage_format(file_percent)}) {file_data.file_count:02}{Color.reset}",
+                      f"{size_converter(file_data.size)}"])
 
     return datas
 
@@ -253,29 +255,31 @@ def main():
             for file in files:
                 if ((not is_binary(f"{r}/{file}") or args.show_binary) and len(os.path.splitext(file)[1]) > 1 and not is_folder_hidden(r)):
                     files_sum += 1
-                    size_sum += os.path.getsize(f"{r}/{file}")
+                    size = os.path.getsize(f"{r}/{file}")
+                    size_sum += size
                     lc = count_lines(f"{r}/{file}")
                     lines_sum += lc
 
-                    file_datas_raw.append(FileData(os.path.splitext(file)[1].lower(), lc, 0))
+                    file_datas_raw.append(FileData(os.path.splitext(file)[1].lower(), lc, 0, size))
 
         for file_data_raw in file_datas_raw:
             if any(x.ext == file_data_raw.ext for x in file_datas):
                 fd = next((x for x in file_datas if x.ext == file_data_raw.ext), None)
 
+                fd.size += file_data_raw.size
                 fd.line_count += file_data_raw.line_count
                 fd.file_count += 1
             else:
-                file_datas.append(FileData(file_data_raw.ext, file_data_raw.line_count, 1))
+                file_datas.append(FileData(file_data_raw.ext, file_data_raw.line_count, 1, file_data_raw.size))
 
         file_datas.sort(key=lambda x: x.line_count, reverse=True)
     finally:
         run_thread = False
 
-    my_table = Table(["File types", "Line count", "Lines / Lines sum", "File count", "Count / Files sum"],
+    my_table = Table(["File types", "Line count", "Lines / Lines sum", "File count", "Size"],
                      prep_table_data(file_datas, lines_sum, files_sum, args.cutoff, args.hide_negligible),
-                     [Align.left, Align.right, Align.center, Align.right, Align.center],
-                     [Align.left, Align.right, Align.center, Align.right, Align.center])
+                     [Align.left, Align.right, Align.center, Align.center, Align.center],
+                     [Align.left, Align.right, Align.center, Align.right, Align.right])
     print(my_table.show())
 
     print(f"\nRoot: {Color.bright_green}{path}{Color.reset}")
