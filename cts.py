@@ -48,14 +48,14 @@ class Align(Enum):
 
 
 class Table:
-    def __init__(self, header: list, datas: List[list], header_aling: List[Align] = None, data_aling: List[Align] = None):
-        header_aling.extend([Align.left] * (len(header) - len(header_aling) if header_aling != None else 0))
-        data_aling.extend([Align.left] * (len(header) - len(data_aling) if data_aling != None else 0))
+    def __init__(self, header: list, datas: List[list], header_align: List[Align] = None, data_align: List[Align] = None):
+        header_align.extend([Align.left] * (len(header) - len(header_align) if header_align != None else 0))
+        data_align.extend([Align.left] * (len(header) - len(data_align) if data_align != None else 0))
 
         self.__header = header
         self.__datas = datas
         self.__longest_in_column = [0] * len(header)
-        self.__aling = [header_aling, data_aling]
+        self.__align = [header_align, data_align]
 
         for i, col in enumerate(header):
             if self.__len_without_color(col) > self.__longest_in_column[i]:
@@ -90,7 +90,7 @@ class Table:
 
         if show_header:
             for i, col in enumerate(self.__header):
-                _table += '| ' + self.__align_element(col, i, self.__aling[0][i]) + ' '
+                _table += '| ' + self.__align_element(col, i, self.__align[0][i]) + ' '
             _table += "|\n"
 
             for col in self.__longest_in_column:
@@ -99,7 +99,7 @@ class Table:
 
         for row in self.__datas:
             for i, col in enumerate(row):
-                _table += '| ' + self.__align_element(col, i, self.__aling[1][i]) + ' '
+                _table += '| ' + self.__align_element(col, i, self.__align[1][i]) + ' '
             _table += "|\n"
 
         return _table
